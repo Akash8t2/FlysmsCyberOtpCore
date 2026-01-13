@@ -7,20 +7,16 @@ import json
 import os
 from datetime import datetime
 
-# ================= ENV =================
+# ================= CONFIG =================
 
-AJAX_URL = os.getenv("AJAX_URL")
+AJAX_URL = "http://193.70.33.154/ints/client/res/data_smscdr.php"
+
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 PHPSESSID = os.getenv("PHPSESSID")
-CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", "10"))
-SUPPORT_URL = os.getenv("SUPPORT_URL")
-NUMBERS_URL = os.getenv("NUMBERS_URL")
 
-if not all([AJAX_URL, BOT_TOKEN, CHAT_ID, PHPSESSID]):
+if not all([BOT_TOKEN, CHAT_ID, PHPSESSID]):
     raise RuntimeError("Missing required ENV variables")
-
-# ================= CONFIG =================
 
 COOKIES = {
     "PHPSESSID": PHPSESSID
@@ -32,9 +28,13 @@ HEADERS = {
     "Accept": "application/json, text/javascript, */*; q=0.01"
 }
 
+CHECK_INTERVAL = 10
 STATE_FILE = "state.json"
 
-# ================= LOGGING =================
+SUPPORT_URL = "https://t.me/botcasx"
+NUMBERS_URL = "https://t.me/CyberOTPCore"
+
+# =========================================
 
 logging.basicConfig(
     level=logging.INFO,
@@ -51,7 +51,7 @@ def load_state():
     if os.path.exists(STATE_FILE):
         try:
             return json.load(open(STATE_FILE))
-        except:
+        except Exception:
             pass
     return {"last_uid": None}
 
@@ -65,7 +65,7 @@ STATE = load_state()
 def extract_otp(text):
     if not text:
         return "N/A"
-    m = re.search(r"\b(\d{4,8})\b", text)
+    m = re.search(r"\b(\d{3,8})\b", text)
     return m.group(1) if m else "N/A"
 
 def build_payload():
@@ -74,18 +74,16 @@ def build_payload():
         "fdate1": f"{today} 00:00:00",
         "fdate2": f"{today} 23:59:59",
         "frange": "",
-        "fclient": "",
         "fnum": "",
         "fcli": "",
         "fgdate": "",
         "fgmonth": "",
         "fgrange": "",
-        "fgclient": "",
         "fgnumber": "",
         "fgcli": "",
         "fg": 0,
         "sEcho": 1,
-        "iColumns": 9,
+        "iColumns": 7,
         "iDisplayStart": 0,
         "iDisplayLength": 25,
         "iSortCol_0": 0,
@@ -98,9 +96,9 @@ def format_message(row):
     route_raw = row[1] or "Unknown"
     number = row[2] or "N/A"
     service = row[3] or "Unknown"
-    message = row[5] or ""
+    message = row[4] or ""
 
-    country = route_raw.split("-")[0]
+    country = route_raw.split()[0]
 
     if not number.startswith("+"):
         number = "+" + number
@@ -134,9 +132,11 @@ def send_telegram(text):
             ]
         }
     }
-    requests.post(url, json=payload, timeout=15)
+    r = requests.post(url, json=payload, timeout=15)
+    if not r.ok:
+        logging.error("Telegram error: %s", r.text)
 
-# ================= CORE (ONLY LIVE) =================
+# ================= CORE (ONLY LIVE MODE) =================
 
 def fetch_latest_sms():
     global STATE
@@ -148,28 +148,29 @@ def fetch_latest_sms():
     if not rows:
         return
 
-    valid = [
-        r for r in rows
-        if isinstance(r, list)
-        and isinstance(r[0], str)
-        and re.match(r"\d{4}-\d{2}-\d{2}", r[0])
-    ]
+    valid_rows = []
+    for row in rows:
+        if not row or not isinstance(row[0], str):
+            continue
+        if not re.match(r"\d{4}-\d{2}-\d{2}", row[0]):
+            continue
+        valid_rows.append(row)
 
-    if not valid:
+    if not valid_rows:
         return
 
-    valid.sort(
+    valid_rows.sort(
         key=lambda x: datetime.strptime(x[0], "%Y-%m-%d %H:%M:%S"),
         reverse=True
     )
 
-    newest = valid[0]
-    uid = newest[0] + newest[2] + (newest[5] or "")
+    newest = valid_rows[0]
+    uid = newest[0] + newest[2] + (newest[4] or "")
 
     if STATE["last_uid"] is None:
         STATE["last_uid"] = uid
         save_state(STATE)
-        logging.info("LIVE baseline set")
+        logging.info("ONLY LIVE MODE baseline set")
         return
 
     if uid != STATE["last_uid"]:
