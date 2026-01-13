@@ -1,1 +1,1 @@
-worker: python neon.py
+worker: python flysms.py
