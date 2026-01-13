@@ -1,35 +1,19 @@
 {
   "name": "ints-live-otp-bot",
-  "description": "ONLY LIVE OTP Forwarder (INTS Panel)",
-  "stack": "heroku-22",
-  "buildpacks": [
-    {
-      "url": "heroku/python"
-    }
-  ],
+  "description": "INTS SMS LIVE OTP Telegram Bot (ONLY LIVE MODE)",
+  "keywords": ["telegram", "otp", "sms", "ints", "python"],
   "env": {
-    "AJAX_URL": {
-      "description": "INTS AJAX URL",
-      "value": "http://144.217.66.209/ints/agent/res/data_smscdr.php"
-    },
     "BOT_TOKEN": {
-      "description": "Telegram Bot Token"
+      "description": "Telegram Bot Token",
+      "required": true
     },
     "CHAT_ID": {
-      "description": "Telegram Group Chat ID"
+      "description": "Telegram Group/Channel Chat ID",
+      "required": true
     },
     "PHPSESSID": {
-      "description": "Session cookie PHPSESSID"
-    },
-    "CHECK_INTERVAL": {
-      "description": "Check interval seconds",
-      "value": "10"
-    },
-    "SUPPORT_URL": {
-      "value": "https://t.me/botcasx"
-    },
-    "NUMBERS_URL": {
-      "value": "https://t.me/CyberOTPCore"
+      "description": "PHPSESSID cookie from INTS panel",
+      "required": true
     }
   },
   "formation": {
@@ -37,5 +21,8 @@
       "quantity": 1,
       "size": "basic"
     }
-  }
+  },
+  "buildpacks": [
+    { "url": "heroku/python" }
+  ]
 }
